@@ -1,0 +1,36 @@
+# Core Framework
+gradio>=4.0.0
+langchain>=0.1.0
+langchain-community>=0.0.10
+
+# Local AI Models
+openai-whisper>=20231117
+transformers>=4.35.0
+torch>=2.0.0
+torchvision>=0.15.0
+torchaudio>=2.0.0
+
+# Vision Models
+Pillow>=10.0.0
+accelerate>=0.24.0
+protobuf>=3.20.0
+
+# Camera and Video Processing
+opencv-python>=4.8.0
+
+# Audio Processing & TTS
+pyttsx3>=2.90
+soundfile>=0.12.0
+librosa>=0.10.0
+
+# Utilities
+numpy>=1.24.0
+requests>=2.31.0
+python-dotenv>=1.0.0
+
+# Optional: Better performance
+bitsandbytes>=0.41.0
+optimum>=1.14.0
+
+# Development
+pytest>=7.4.0
