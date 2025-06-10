@@ -89,20 +89,68 @@ fi
 echo ""
 echo "🎉 Setup complete!"
 echo ""
-echo "🚀 Starting Local AI Demo Stack..."
+echo "🚀 Choose your experience:"
+echo "1) Interactive AI Demo Tour (Recommended for new users)"
+echo "2) Original AI Demo Stack (Free-play mode)"
+echo ""
+read -p "Enter your choice (1 or 2): " choice
+
+case $choice in
+    2)
+        echo ""
+        echo "🚀 Starting Original AI Demo Stack..."
+        echo "📝 Note: Models will download automatically on first use"
+        echo "   This may take a few minutes initially."
+        echo ""
+        echo "🌐 The app will open in your browser automatically"
+        echo "   If port 7860 is busy, it will find another free port"
+        echo ""
+        echo "🎯 Vision Features:"
+        echo "   - With Ollama LLaVA: Advanced question answering"
+        echo "   - Ask specific questions like 'Is this a ghost?'"
+        echo "   - Detailed scene analysis and object recognition"
+        echo ""
+        echo "Press Ctrl+C to stop the application"
+        echo "===================================="
+        
+        # Start the original application
+        python3 app.py
+        ;;
+    *)
+        echo ""
+        echo "🚀 Starting Interactive AI Demo Tour..."
 echo "📝 Note: Models will download automatically on first use"
 echo "   This may take a few minutes initially."
 echo ""
-echo "🌐 The app will open in your browser automatically"
+echo "🌐 The interactive tour will open in your browser automatically"
 echo "   If port 7860 is busy, it will find another free port"
 echo ""
-echo "🎯 Vision Features:"
-echo "   - With Ollama LLaVA: Advanced question answering"
-echo "   - Ask specific questions like 'Is this a ghost?'"
-echo "   - Detailed scene analysis and object recognition"
+echo "🎯 Interactive Tour Features:"
+echo "   ✅ Step-by-step guided experience through AI capabilities"
+echo "   ✅ Email registration and completion certificates"
+echo "   ✅ Hands-on testing of LLM Chat, Vision AI, Speech-to-Text, and TTS"
+echo "   ✅ Knowledge assessment quiz with scoring"
+echo "   ✅ Back/Next navigation with progress tracking"
+echo "   ✅ Modern UI with consistent design and fonts"
+echo ""
+echo "🎓 Tour Modules:"
+echo "   1. Welcome & Introduction"
+echo "   2. About Local AI Benefits"
+echo "   3. Email Registration"
+echo "   4. LLM Chat Experience"
+echo "   5. Vision AI Image Analysis"
+echo "   6. Speech-to-Text (Whisper)"
+echo "   7. Text-to-Speech Demo"
+echo "   8. Knowledge Quiz (10 questions)"
+echo "   9. Completion & Certificate"
+echo ""
+echo "⏱️ Duration: 15-20 minutes"
+echo "🏆 Completion: Quiz results and participation certificate"
 echo ""
 echo "Press Ctrl+C to stop the application"
 echo "===================================="
 
-# Start the application
-python3 app.py
+        # Start the interactive tour application
+        python3 interactive_tour_fixed.py
+        ;;
+esac
