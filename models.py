@@ -32,32 +32,151 @@ class WhisperSTT:
             return f"Error transcribing audio: {str(e)}"
 
 class LocalTTS:
-    """Local Text-to-Speech using pyttsx3"""
+    """Enhanced Local Text-to-Speech with multiple high-quality options"""
     
     def __init__(self):
-        self.engine = pyttsx3.init()
-        # Configure voice settings
-        voices = self.engine.getProperty('voices')
-        if voices:
-            self.engine.setProperty('voice', voices[0].id)
-        self.engine.setProperty('rate', 150)  # Speed
-        self.engine.setProperty('volume', 0.9)  # Volume
+        self.tts_engine = None
+        self.engine_type = None
+        
+        # Try to initialize the best available TTS engine
+        self._initialize_best_tts()
+    
+    def _initialize_best_tts(self):
+        """Initialize the best available TTS engine"""
+        
+        # Option 1: Try edge-tts (Microsoft Edge TTS - High Quality)
+        try:
+            import edge_tts
+            self.tts_engine = edge_tts
+            self.engine_type = "edge_tts"
+            print("✅ Using Microsoft Edge TTS (High Quality)")
+            return
+        except ImportError:
+            print("⚠️ edge-tts not available, trying next option...")
+        
+        # Option 2: Try Coqui TTS (Neural TTS - Very High Quality)
+        try:
+            from TTS.api import TTS
+            # Use a fast, good quality model
+            model_name = "tts_models/en/ljspeech/tacotron2-DDC"
+            self.tts_engine = TTS(model_name=model_name, progress_bar=False)
+            self.engine_type = "coqui_tts"
+            print("✅ Using Coqui TTS (Neural - Very High Quality)")
+            return
+        except ImportError:
+            print("⚠️ Coqui TTS not available, trying next option...")
+        except Exception as e:
+            print(f"⚠️ Coqui TTS failed to load: {e}")
+        
+        # Option 3: Try gTTS (Google TTS - Good Quality, requires internet)
+        try:
+            from gtts import gTTS
+            self.tts_engine = gTTS
+            self.engine_type = "gtts"
+            print("✅ Using Google TTS (Good Quality - requires internet)")
+            return
+        except ImportError:
+            print("⚠️ gTTS not available, falling back to pyttsx3...")
+        
+        # Fallback: pyttsx3 (Basic quality but always available)
+        try:
+            import pyttsx3
+            self.tts_engine = pyttsx3.init()
+            # Configure voice settings for better quality
+            voices = self.tts_engine.getProperty('voices')
+            if voices:
+                # Try to find a better voice (prefer female voices as they often sound better)
+                for voice in voices:
+                    if 'female' in voice.name.lower() or 'zira' in voice.name.lower():
+                        self.tts_engine.setProperty('voice', voice.id)
+                        break
+                else:
+                    self.tts_engine.setProperty('voice', voices[0].id)
+            
+            self.tts_engine.setProperty('rate', 180)  # Slightly faster
+            self.tts_engine.setProperty('volume', 0.9)
+            self.engine_type = "pyttsx3"
+            print("✅ Using pyttsx3 TTS (Basic Quality)")
+        except Exception as e:
+            print(f"❌ All TTS engines failed: {e}")
+            self.tts_engine = None
+            self.engine_type = None
     
     def speak(self, text):
         """Convert text to speech and save as audio file"""
+        if not self.tts_engine:
+            return None
+        
         try:
             # Create temporary file
             temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.wav')
             temp_path = temp_file.name
             temp_file.close()
             
-            # Save speech to file
-            self.engine.save_to_file(text, temp_path)
-            self.engine.runAndWait()
+            if self.engine_type == "edge_tts":
+                return self._speak_edge_tts(text, temp_path)
+            elif self.engine_type == "coqui_tts":
+                return self._speak_coqui_tts(text, temp_path)
+            elif self.engine_type == "gtts":
+                return self._speak_gtts(text, temp_path)
+            elif self.engine_type == "pyttsx3":
+                return self._speak_pyttsx3(text, temp_path)
             
-            return temp_path
         except Exception as e:
             print(f"TTS Error: {e}")
+            return None
+    
+    def _speak_edge_tts(self, text, output_path):
+        """Use Microsoft Edge TTS (High Quality)"""
+        try:
+            import asyncio
+            import edge_tts
+            
+            async def generate_speech():
+                # Use a high-quality voice
+                voice = "en-US-AriaNeural"  # Natural sounding female voice
+                communicate = edge_tts.Communicate(text, voice)
+                await communicate.save(output_path)
+            
+            # Run the async function
+            asyncio.run(generate_speech())
+            return output_path
+            
+        except Exception as e:
+            print(f"Edge TTS error: {e}")
+            return None
+    
+    def _speak_coqui_tts(self, text, output_path):
+        """Use Coqui TTS (Neural - Very High Quality)"""
+        try:
+            self.tts_engine.tts_to_file(text=text, file_path=output_path)
+            return output_path
+        except Exception as e:
+            print(f"Coqui TTS error: {e}")
+            return None
+    
+    def _speak_gtts(self, text, output_path):
+        """Use Google TTS (Good Quality)"""
+        try:
+            from gtts import gTTS
+            import pygame
+            
+            tts = gTTS(text=text, lang='en', slow=False)
+            tts.save(output_path)
+            return output_path
+            
+        except Exception as e:
+            print(f"gTTS error: {e}")
+            return None
+    
+    def _speak_pyttsx3(self, text, output_path):
+        """Use pyttsx3 TTS (Basic Quality - Fallback)"""
+        try:
+            self.tts_engine.save_to_file(text, output_path)
+            self.tts_engine.runAndWait()
+            return output_path
+        except Exception as e:
+            print(f"pyttsx3 error: {e}")
             return None
 
 class LocalLLM:

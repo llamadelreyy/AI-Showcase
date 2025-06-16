@@ -1,0 +1,31 @@
+# Core Framework
+gradio>=4.0.0
+
+# Local AI Models
+openai-whisper>=20231117
+transformers>=4.35.0
+torch>=2.0.0
+torchvision>=0.15.0
+
+# Vision Models (essential for image analysis)
+Pillow>=10.0.0
+accelerate>=0.24.0
+
+# Audio Processing & Enhanced TTS
+soundfile>=0.12.0
+pyttsx3>=2.90
+
+# High-Quality TTS Options (lightweight)
+edge-tts>=6.1.0
+gTTS>=2.4.0
+
+# Utilities
+numpy>=1.24.0
+requests>=2.31.0
+python-dotenv>=1.0.0
+
+# Optional: Remove problematic packages that cause conflicts
+# opencv-python>=4.8.0  # Often causes conflicts - can be installed separately if needed
+# librosa>=0.10.0       # Heavy dependency - can be installed separately if needed
+# TTS>=0.22.0          # Very heavy - can be installed separately if needed
+# protobuf>=3.20.0     # Often causes version conflicts

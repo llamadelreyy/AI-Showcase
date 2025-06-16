@@ -48,8 +48,18 @@ echo "⬆️ Upgrading pip..."
 pip install --upgrade pip
 
 # Install requirements
-echo "📥 Installing requirements (this may take a few minutes)..."
-pip install -r requirements.txt
+echo "📥 Installing optimized requirements (faster installation)..."
+if [ -f "requirements_optimized.txt" ]; then
+    echo "Using optimized requirements for faster setup..."
+    pip install -r requirements_optimized.txt
+else
+    echo "Using standard requirements..."
+    pip install -r requirements.txt
+fi
+
+# Install enhanced TTS separately to avoid conflicts
+echo "🔊 Installing enhanced TTS for better voice quality..."
+pip install edge-tts gTTS --no-deps || echo "⚠️ Some TTS packages may need manual installation"
 
 # Check if Ollama is available
 echo "🦙 Checking for Ollama..."
@@ -150,7 +160,7 @@ echo ""
 echo "Press Ctrl+C to stop the application"
 echo "===================================="
 
-        # Start the interactive tour application
-        python3 interactive_tour_fixed.py
+        # Start the enhanced interactive tour application
+        python3 interactive_tour_enhanced.py
         ;;
 esac
