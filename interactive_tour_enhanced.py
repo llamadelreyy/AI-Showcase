@@ -32,67 +32,77 @@ session_data = {
     "current_question": 0
 }
 
-# Quiz questions for the final assessment
+# Enhanced Quiz questions for the final assessment (10 questions)
 QUIZ_QUESTIONS = [
     {
         "question": "What does LLM stand for in AI?",
         "options": ["Large Language Model", "Linear Learning Machine", "Local Logic Module", "Language Learning Method"],
         "correct": 0,
-        "module": "LLM Chat"
+        "module": "LLM Chat",
+        "explanation": "LLM stands for Large Language Model - AI systems trained on vast amounts of text data."
     },
     {
         "question": "Which AI model is commonly used for speech-to-text conversion?",
-        "options": ["GPT", "BERT", "Whisper", "DALL-E"],
+        "options": ["GPT-4", "BERT", "Whisper", "DALL-E"],
         "correct": 2,
-        "module": "Whisper"
+        "module": "Speech-to-Text",
+        "explanation": "Whisper is OpenAI's automatic speech recognition system for converting speech to text."
     },
     {
         "question": "What is the main advantage of running AI models locally?",
         "options": ["Faster internet", "Better graphics", "Privacy and no API costs", "More storage"],
         "correct": 2,
-        "module": "General"
+        "module": "General",
+        "explanation": "Local AI ensures complete privacy and eliminates ongoing API costs."
     },
     {
         "question": "What does TTS stand for?",
         "options": ["Text-to-Speech", "Time-to-Start", "Type-to-Send", "Talk-to-System"],
         "correct": 0,
-        "module": "TTS"
+        "module": "Text-to-Speech",
+        "explanation": "TTS stands for Text-to-Speech - technology that converts written text into spoken words."
     },
     {
         "question": "Which type of AI model can analyze and describe images?",
-        "options": ["Language Model", "Vision Language Model", "Audio Model", "Text Model"],
+        "options": ["Language Model only", "Vision Language Model (VLM)", "Audio Model only", "Text Model only"],
         "correct": 1,
-        "module": "Vision"
+        "module": "Vision AI",
+        "explanation": "Vision Language Models combine computer vision with language understanding to analyze images."
     },
     {
         "question": "What is the benefit of using Ollama for AI models?",
-        "options": ["Cloud storage", "Local model management", "Internet speed", "Graphics enhancement"],
+        "options": ["Cloud storage", "Local model management and optimization", "Internet speed", "Graphics enhancement"],
         "correct": 1,
-        "module": "General"
+        "module": "General",
+        "explanation": "Ollama provides easy local model management, allowing you to run AI models efficiently on your machine."
     },
     {
-        "question": "In the Voice Chat module, what happens after you record your voice?",
-        "options": ["It gets uploaded", "AI transcribes → generates response → speaks back", "It gets saved", "Nothing happens"],
+        "question": "Which neural TTS engine provides the highest quality voices?",
+        "options": ["pyttsx3", "Microsoft Edge TTS", "Basic system TTS", "Command line TTS"],
         "correct": 1,
-        "module": "Voice Chat"
+        "module": "Text-to-Speech",
+        "explanation": "Microsoft Edge TTS uses neural networks to generate very natural-sounding voices."
     },
     {
-        "question": "What can the Vision AI analyze in images?",
-        "options": ["Only text", "Only colors", "Objects, people, text, and details", "Only faces"],
+        "question": "What can Vision AI analyze in uploaded images?",
+        "options": ["Only text (OCR)", "Only colors and shapes", "Objects, people, text, scenes, and details", "Only facial expressions"],
         "correct": 2,
-        "module": "Vision"
+        "module": "Vision AI",
+        "explanation": "Modern Vision AI can comprehensively analyze images including objects, people, text, scenes, and contextual details."
     },
     {
-        "question": "What is the main purpose of this Local AI Demo Stack?",
-        "options": ["Gaming", "Demonstrate local AI capabilities", "Web browsing", "File management"],
-        "correct": 1,
-        "module": "General"
-    },
-    {
-        "question": "Which port does the application typically run on?",
-        "options": ["8080", "3000", "7860", "5000"],
+        "question": "How many languages can Whisper speech recognition handle?",
+        "options": ["Only English", "About 10 languages", "99+ languages", "Only European languages"],
         "correct": 2,
-        "module": "Technical"
+        "module": "Speech-to-Text",
+        "explanation": "Whisper supports 99+ languages and can handle various accents and background noise."
+    },
+    {
+        "question": "What makes this AI Demo Stack special compared to cloud AI services?",
+        "options": ["It's slower but cheaper", "100% local, private, and free after setup", "It requires internet", "It only works on servers"],
+        "correct": 1,
+        "module": "General",
+        "explanation": "This demo runs entirely locally, ensuring privacy, eliminating ongoing costs, and working without internet."
     }
 ]
 
@@ -135,10 +145,15 @@ def initialize_models():
     except Exception as e:
         print(f"❌ Error initializing models: {e}")
 
-def get_progress_html(step, total_steps=9):
+def get_progress_html(step, total_steps=10):
     """Generate progress bar HTML"""
-    percentage = (step / total_steps) * 100
-    step_names = ["Intro", "About", "Email", "LLM Chat", "Vision AI", "Speech-to-Text", "Text-to-Speech", "Quiz", "Complete"]
+    # Ensure completion page shows 100%
+    if step >= 9:  # Completion page
+        percentage = 100
+    else:
+        percentage = ((step + 1) / total_steps) * 100
+    
+    step_names = ["Intro", "About", "Email", "LLM Chat", "Vision AI", "Speech-to-Text", "Text-to-Speech", "Quiz Intro", "Quiz", "Complete"]
     current_step_name = step_names[min(step, len(step_names)-1)]
     
     return f"""
@@ -269,30 +284,89 @@ def submit_quiz_answer(selected_option, current_q):
     next_q = current_q + 1
     
     if next_q >= len(QUIZ_QUESTIONS):
-        # Quiz completed
+        # Quiz completed - Generate detailed results
         score = session_data["quiz_score"]
         total = len(QUIZ_QUESTIONS)
+        incorrect = total - score
         percentage = (score / total) * 100
+        
+        # Generate detailed answer breakdown
+        answer_breakdown = ""
+        for i, answer_data in enumerate(session_data["quiz_answers"]):
+            question = QUIZ_QUESTIONS[answer_data["question"]]
+            status = "✅ Correct" if answer_data["correct"] else "❌ Incorrect"
+            selected_answer = question["options"][answer_data["selected"]]
+            correct_answer = question["options"][question["correct"]]
+            
+            answer_breakdown += f"""
+            <div style="background: rgba(255, 255, 255, 0.1); padding: 15px; border-radius: 10px; margin: 10px 0; text-align: left;">
+                <div style="font-weight: bold; margin-bottom: 8px;">Q{i+1}: {question["question"]}</div>
+                <div style="margin: 5px 0;">
+                    <span style="color: {'#90EE90' if answer_data['correct'] else '#FFB6C1'};">{status}</span>
+                </div>
+                <div style="font-size: 0.9rem; opacity: 0.9;">
+                    Your answer: {selected_answer}
+                    {f'<br>Correct answer: {correct_answer}' if not answer_data['correct'] else ''}
+                </div>
+            </div>
+            """
         
         completion_html = f"""
         <div style="text-align: center; padding: 40px; background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white; border-radius: 20px;">
             <h1 style="font-size: 2.5rem; margin-bottom: 20px;">🎉 Quiz Complete!</h1>
+            
             <div style="background: rgba(255, 255, 255, 0.2); border-radius: 15px; padding: 25px; margin: 20px 0;">
-                <h3>📊 Your Results:</h3>
-                <div style="font-size: 2rem; margin: 15px 0;"><strong>{score}/{total}</strong> ({percentage:.0f}%)</div>
-                <div style="background: rgba(255, 255, 255, 0.1); padding: 15px; border-radius: 10px;">
-                    {'🏆 Excellent work!' if percentage >= 80 else '👍 Good job!' if percentage >= 60 else '📚 Keep learning!'}
+                <h3 style="margin-bottom: 20px;">📊 Your Final Results:</h3>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin: 20px 0;">
+                    <div style="background: rgba(255, 255, 255, 0.1); padding: 15px; border-radius: 10px;">
+                        <div style="font-size: 1.8rem; font-weight: bold; color: #90EE90;">✅ {score}</div>
+                        <div style="font-size: 0.9rem;">Correct</div>
+                    </div>
+                    <div style="background: rgba(255, 255, 255, 0.1); padding: 15px; border-radius: 10px;">
+                        <div style="font-size: 1.8rem; font-weight: bold; color: #FFB6C1;">❌ {incorrect}</div>
+                        <div style="font-size: 0.9rem;">Incorrect</div>
+                    </div>
+                    <div style="background: rgba(255, 255, 255, 0.1); padding: 15px; border-radius: 10px;">
+                        <div style="font-size: 1.8rem; font-weight: bold;">📊 {percentage:.0f}%</div>
+                        <div style="font-size: 0.9rem;">Score</div>
+                    </div>
+                </div>
+                
+                <div style="background: rgba(255, 255, 255, 0.1); padding: 15px; border-radius: 10px; margin: 20px 0;">
+                    <div style="font-size: 1.3rem; font-weight: bold;">
+                        {'🏆 Excellent work!' if percentage >= 80 else '👍 Good job!' if percentage >= 60 else '📚 Keep learning!'}
+                    </div>
+                    <div style="font-size: 1rem; margin-top: 10px;">
+                        {'You have mastered local AI concepts!' if percentage >= 80 else
+                         'You have a solid understanding of AI basics!' if percentage >= 60 else
+                         'Consider reviewing the modules for better understanding.'}
+                    </div>
                 </div>
             </div>
-            <p style="font-size: 1.1rem;">Thank you for participating in our AI Demo Tour!</p>
+            
+            <div style="background: rgba(255, 255, 255, 0.2); border-radius: 15px; padding: 25px; margin: 20px 0;">
+                <h3 style="margin-bottom: 15px;">📝 Detailed Answer Review:</h3>
+                <div style="max-height: 300px; overflow-y: auto;">
+                    {answer_breakdown}
+                </div>
+            </div>
+            
+            <p style="font-size: 1.1rem; margin-top: 20px;">
+                Thank you for participating in our AI Demo Tour!<br>
+                <span style="font-size: 0.9rem; opacity: 0.8;">You answered {score} out of {total} questions correctly.</span>
+            </p>
         </div>
         """
         
+        # Navigate to completion step (step 9)
+        session_data["current_step"] = 9
+        
         return (
-            f"✅ Correct! Final Score: {score}/{total} ({percentage:.0f}%)" if is_correct else f"❌ Incorrect. Final Score: {score}/{total} ({percentage:.0f}%)",
             next_q,
-            gr.update(value=completion_html, visible=True),
-            gr.update(visible=False)  # Hide quiz interface
+            gr.update(value=""),  # Clear quiz question
+            gr.update(choices=[], value=None),  # Clear quiz options
+            gr.update()  # Keep feedback hidden
         )
     else:
         # Show next question
@@ -303,15 +377,15 @@ def submit_quiz_answer(selected_option, current_q):
                 <h3>📚 {next_question['module']} Question</h3>
                 <span>Question {next_q + 1} of {len(QUIZ_QUESTIONS)}</span>
             </div>
-            <p style="font-size: 1.2rem; font-weight: 500;">{next_question['question']}</p>
+            <p style="font-size: 1.2rem; font-weight: 500; margin-bottom: 20px;">{next_question['question']}</p>
         </div>
         """
         
         return (
-            f"✅ Correct!" if is_correct else f"❌ Incorrect. The correct answer was: {question['options'][question['correct']]}",
             next_q,
             gr.update(value=question_html),
-            gr.update(choices=next_question['options'], value=None)
+            gr.update(choices=next_question['options'], value=None),
+            gr.update()  # Keep feedback hidden
         )
 
 def reset_session():
@@ -394,6 +468,7 @@ def create_interactive_tour():
         with gr.Row():
             gr.HTML("<h3 style='text-align: center; margin: 20px 0; color: #667eea;'>🚀 Quick Access - Jump to Any Module:</h3>")
         with gr.Row():
+            home_direct_btn = gr.Button("🏠 Home", variant="secondary", elem_classes=["btn-secondary"])
             llm_direct_btn = gr.Button("💬 LLM Chat", variant="secondary", elem_classes=["btn-secondary"])
             vision_direct_btn = gr.Button("👁️ Vision AI", variant="secondary", elem_classes=["btn-secondary"])
             whisper_direct_btn = gr.Button("🎤 Speech-to-Text", variant="secondary", elem_classes=["btn-secondary"])
@@ -510,7 +585,6 @@ def create_interactive_tour():
                     tts_audio = gr.Audio(label="🎵 Generated Speech", autoplay=True)
         
         with gr.Group(visible=False) as quiz_group:
-            quiz_feedback = gr.Textbox(label="Feedback", lines=2)
             quiz_question_display = gr.HTML()
             quiz_options = gr.Radio(
                 choices=[],
@@ -518,6 +592,7 @@ def create_interactive_tour():
                 interactive=True
             )
             quiz_submit_btn = gr.Button("✅ Submit Answer", variant="primary")
+            quiz_feedback = gr.HTML(visible=False)  # Hidden feedback for results
         
         # Completion display
         completion_display = gr.HTML(visible=False)
@@ -896,21 +971,24 @@ def create_interactive_tour():
             progress_html = get_progress_html(step)
             
             # Update navigation buttons
-            back_visible = step > 0 and step < 8  # Hide back button on completion page
+            back_visible = step > 0 and step != 9  # Show back button on all steps except step 0 and step 9
             
             # Determine next button text and visibility
-            if step >= 8:  # Completion page
-                next_text = "🔄 Start Again"
-                next_visible = True
-            elif step == 7:  # Quiz page
+            if step == 7:  # Quiz introduction page
                 next_text = "🧠 Start Quiz"
+                next_visible = True
+            elif step == 8:  # During quiz
+                next_text = "➡️ Next"
+                next_visible = True  # Show next button to go to completion
+            elif step == 9:  # Completion page
+                next_text = "🔄 Start Again"
                 next_visible = True
             else:
                 next_text = "➡️ Next"
                 next_visible = True
             
             # Update main content based on step
-            if step == 8:  # Completion page
+            if step == 9:  # Completion page
                 score = session_data.get("quiz_score", 0)
                 total = len(QUIZ_QUESTIONS)
                 percentage = (score / total) * 100 if total > 0 else 0
@@ -974,8 +1052,53 @@ def create_interactive_tour():
             vision_visible = step == 4
             whisper_visible = step == 5
             tts_visible = step == 6
-            quiz_visible = step == 7
-            completion_visible = step == 8
+            quiz_visible = step == 8
+            completion_visible = step == 9
+            
+            # Update content for quiz step
+            if step == 7:
+                content = """
+                <div style="text-align: center; padding: 50px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 70vh; color: white; border-radius: 20px;">
+                    <div style="background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); border-radius: 20px; padding: 40px; max-width: 800px; margin: 0 auto;">
+                        <h1 style="font-size: 2.5rem; margin-bottom: 20px; text-shadow: 2px 2px 4px rgba(0,0,0,0.3);">
+                            🧠 Knowledge Assessment Quiz
+                        </h1>
+                        <p style="font-size: 1.3rem; margin-bottom: 30px; line-height: 1.6;">
+                            Test your understanding of the AI modules you've explored!
+                        </p>
+                        
+                        <div style="background: rgba(255, 255, 255, 0.2); border-radius: 15px; padding: 25px; margin: 30px 0;">
+                            <h3 style="margin-bottom: 15px;">📋 Quiz Details:</h3>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 20px;">
+                                <div style="background: rgba(255, 255, 255, 0.1); padding: 15px; border-radius: 10px;">
+                                    <div style="font-size: 1.5rem;">📝</div>
+                                    <div style="font-weight: bold;">10 Questions</div>
+                                    <div style="font-size: 0.9rem;">Multiple choice format</div>
+                                </div>
+                                <div style="background: rgba(255, 255, 255, 0.1); padding: 15px; border-radius: 10px;">
+                                    <div style="font-size: 1.5rem;">⏱️</div>
+                                    <div style="font-weight: bold;">No Time Limit</div>
+                                    <div style="font-size: 0.9rem;">Take your time</div>
+                                </div>
+                                <div style="background: rgba(255, 255, 255, 0.1); padding: 15px; border-radius: 10px;">
+                                    <div style="font-size: 1.5rem;">🎯</div>
+                                    <div style="font-weight: bold;">All Modules</div>
+                                    <div style="font-size: 0.9rem;">LLM, Vision, Speech, TTS</div>
+                                </div>
+                                <div style="background: rgba(255, 255, 255, 0.1); padding: 15px; border-radius: 10px;">
+                                    <div style="font-size: 1.5rem;">📊</div>
+                                    <div style="font-weight: bold;">Detailed Results</div>
+                                    <div style="font-size: 0.9rem;">See your score breakdown</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <p style="font-size: 1.1rem; margin-top: 30px;">
+                            Click <strong>"🧠 Start Quiz"</strong> below to begin!
+                        </p>
+                    </div>
+                </div>
+                """
             
             return (
                 progress_html,
@@ -998,18 +1121,17 @@ def create_interactive_tour():
                 session_data["email"] = email_value
                 session_data["start_time"] = datetime.now()
             
-            if step == 8:  # Completion page - Start Again
-                # Reset session data
+            # Handle "Start Again" from completion page
+            if step == 9:  # Completion page - Start Again
                 reset_session()
-                # Go back to intro page (step 0)
-                result = navigate_to_step(0)
-                return result + (
-                    gr.update(value=""),  # Clear quiz question display
-                    gr.update(choices=[], value=None),  # Clear quiz options
-                    0  # Reset quiz question index
-                )
+                return navigate_to_step(0) + (gr.update(), gr.update(), gr.update())
             
-            if step == 7:  # Starting quiz
+            if step == 7:  # Quiz introduction - Start Quiz
+                # Reset quiz data
+                session_data["quiz_answers"] = []
+                session_data["quiz_score"] = 0
+                session_data["current_question"] = 0
+                
                 # Initialize first question
                 question = QUIZ_QUESTIONS[0]
                 question_html = f"""
@@ -1018,17 +1140,19 @@ def create_interactive_tour():
                         <h3>📚 {question['module']} Question</h3>
                         <span>Question 1 of {len(QUIZ_QUESTIONS)}</span>
                     </div>
-                    <p style="font-size: 1.2rem; font-weight: 500;">{question['question']}</p>
+                    <p style="font-size: 1.2rem; font-weight: 500; margin-bottom: 20px;">{question['question']}</p>
                 </div>
                 """
                 
                 result = navigate_to_step(step + 1)
                 return result + (
-                    gr.update(value=question_html),
-                    gr.update(choices=question['options'], value=None),
+                    gr.update(value=question_html, visible=True),
+                    gr.update(choices=question['options'], value=None, visible=True),
                     0  # Reset quiz question index
                 )
             
+            if step == 8:  # During quiz - this shouldn't be called as we use submit button
+                return navigate_to_step(step + 1) + (gr.update(), gr.update(), gr.update())
             return navigate_to_step(step + 1) + (gr.update(), gr.update(), gr.update())
         
         def go_back(step):
@@ -1096,10 +1220,14 @@ def create_interactive_tour():
         quiz_submit_btn.click(
             submit_quiz_answer,
             inputs=[quiz_options, quiz_question_idx],
-            outputs=[quiz_feedback, quiz_question_idx, quiz_question_display, quiz_options]
+            outputs=[quiz_question_idx, quiz_question_display, quiz_options, quiz_feedback]
         )
         
         # Direct module navigation handlers
+        def go_to_home_direct():
+            """Jump directly to Home page"""
+            return navigate_to_step(0) + (gr.update(), gr.update(), gr.update())
+        
         def go_to_llm_direct():
             """Jump directly to LLM Chat module"""
             return navigate_to_step(3) + (gr.update(), gr.update(), gr.update())
@@ -1115,6 +1243,16 @@ def create_interactive_tour():
         def go_to_tts_direct():
             """Jump directly to Text-to-Speech module"""
             return navigate_to_step(6) + (gr.update(), gr.update(), gr.update())
+        
+        home_direct_btn.click(
+            go_to_home_direct,
+            outputs=[
+                progress_display, back_btn, next_btn, main_content,
+                email_input_group, llm_group, vision_group, whisper_group,
+                tts_group, quiz_group, completion_display, current_step,
+                quiz_question_display, quiz_options, quiz_question_idx
+            ]
+        )
         
         llm_direct_btn.click(
             go_to_llm_direct,
