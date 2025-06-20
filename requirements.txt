@@ -38,5 +38,8 @@ python-dotenv>=1.0.0
 bitsandbytes>=0.41.0
 optimum>=1.14.0
 
+# QR Code Generation
+qrcode[pil]>=7.4.0
+
 # Development
 pytest>=7.4.0

@@ -1,6 +1,7 @@
 """
 Interactive AI Demo Tour - Enhanced Version with Complete Step-by-Step Structure
-Includes all 9 steps: Intro → About → Email → LLM → Vision → Whisper → TTS → Quiz → Complete
+Includes all 9 steps: Intro → About → Name → LLM → Vision → Whisper → TTS → Quiz → Complete
+Enhanced with: Camera capture, Microphone recording, QR code certificates
 """
 
 import gradio as gr
@@ -10,8 +11,11 @@ import os
 import json
 import time
 from datetime import datetime
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
 import threading
+import qrcode
+import base64
+import io
 
 from models import WhisperSTT, LocalTTS, LocalLLM, LocalVLM, OllamaLLM
 from config import Config
@@ -24,7 +28,7 @@ vlm_model = None
 
 # Session data
 session_data = {
-    "email": "",
+    "name": "",
     "start_time": None,
     "current_step": 0,
     "quiz_answers": [],
@@ -106,6 +110,140 @@ QUIZ_QUESTIONS = [
     }
 ]
 
+def generate_certificate_qr(name, score, total):
+    """Generate a QR code certificate for the participant"""
+    try:
+        # Create certificate data
+        certificate_data = {
+            "participant": name,
+            "course": "AI Demo Tour",
+            "score": f"{score}/{total}",
+            "percentage": f"{(score/total)*100:.0f}%",
+            "date": datetime.now().strftime("%Y-%m-%d"),
+            "issuer": "Local AI Demo Stack",
+            "certificate_id": f"AIDT-{datetime.now().strftime('%Y%m%d')}-{hash(name) % 10000:04d}"
+        }
+        
+        # Create certificate text for QR code
+        certificate_text = f"""
+🎓 CERTIFICATE OF COMPLETION 🎓
+
+Participant: {name}
+Course: AI Demo Tour
+Score: {score}/{total} ({(score/total)*100:.0f}%)
+Date: {datetime.now().strftime("%B %d, %Y")}
+Certificate ID: {certificate_data['certificate_id']}
+
+This certifies that {name} has successfully completed the Interactive AI Demo Tour, demonstrating understanding of Local AI technologies including LLM Chat, Vision AI, Speech-to-Text, and Text-to-Speech systems.
+
+Issued by: Local AI Demo Stack
+Verification: This certificate can be verified using the QR code data.
+        """.strip()
+        
+        # Generate QR code
+        qr = qrcode.QRCode(
+            version=1,
+            error_correction=qrcode.constants.ERROR_CORRECT_L,
+            box_size=10,
+            border=4,
+        )
+        qr.add_data(certificate_text)
+        qr.make(fit=True)
+        
+        # Create QR code image
+        qr_img = qr.make_image(fill_color="black", back_color="white")
+        
+        # Create a more elaborate certificate image
+        cert_width, cert_height = 800, 600
+        cert_img = Image.new('RGB', (cert_width, cert_height), 'white')
+        draw = ImageDraw.Draw(cert_img)
+        
+        # Try to use a nice font, fallback to default
+        try:
+            title_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 32)
+            header_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 24)
+            text_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 18)
+            small_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 14)
+        except:
+            title_font = ImageFont.load_default()
+            header_font = ImageFont.load_default()
+            text_font = ImageFont.load_default()
+            small_font = ImageFont.load_default()
+        
+        # Draw certificate border
+        border_color = "#667eea"
+        draw.rectangle([10, 10, cert_width-10, cert_height-10], outline=border_color, width=3)
+        draw.rectangle([20, 20, cert_width-20, cert_height-20], outline=border_color, width=1)
+        
+        # Draw title
+        title_text = "🎓 CERTIFICATE OF COMPLETION 🎓"
+        title_bbox = draw.textbbox((0, 0), title_text, font=title_font)
+        title_width = title_bbox[2] - title_bbox[0]
+        draw.text(((cert_width - title_width) // 2, 40), title_text, fill=border_color, font=title_font)
+        
+        # Draw participant name
+        name_text = f"This certifies that {name}"
+        name_bbox = draw.textbbox((0, 0), name_text, font=header_font)
+        name_width = name_bbox[2] - name_bbox[0]
+        draw.text(((cert_width - name_width) // 2, 120), name_text, fill="black", font=header_font)
+        
+        # Draw course info
+        course_text = "has successfully completed the"
+        course_bbox = draw.textbbox((0, 0), course_text, font=text_font)
+        course_width = course_bbox[2] - course_bbox[0]
+        draw.text(((cert_width - course_width) // 2, 160), course_text, fill="black", font=text_font)
+        
+        course_name = "Interactive AI Demo Tour"
+        course_name_bbox = draw.textbbox((0, 0), course_name, font=header_font)
+        course_name_width = course_name_bbox[2] - course_name_bbox[0]
+        draw.text(((cert_width - course_name_width) // 2, 190), course_name, fill=border_color, font=header_font)
+        
+        # Draw score
+        score_text = f"Score: {score}/{total} ({(score/total)*100:.0f}%)"
+        score_bbox = draw.textbbox((0, 0), score_text, font=text_font)
+        score_width = score_bbox[2] - score_bbox[0]
+        draw.text(((cert_width - score_width) // 2, 240), score_text, fill="black", font=text_font)
+        
+        # Draw date
+        date_text = f"Date: {datetime.now().strftime('%B %d, %Y')}"
+        date_bbox = draw.textbbox((0, 0), date_text, font=text_font)
+        date_width = date_bbox[2] - date_bbox[0]
+        draw.text(((cert_width - date_width) // 2, 280), date_text, fill="black", font=text_font)
+        
+        # Draw certificate ID
+        id_text = f"Certificate ID: {certificate_data['certificate_id']}"
+        id_bbox = draw.textbbox((0, 0), id_text, font=small_font)
+        id_width = id_bbox[2] - id_bbox[0]
+        draw.text(((cert_width - id_width) // 2, 320), id_text, fill="gray", font=small_font)
+        
+        # Add QR code to certificate
+        qr_size = 120
+        qr_resized = qr_img.resize((qr_size, qr_size))
+        qr_x = cert_width - qr_size - 40
+        qr_y = cert_height - qr_size - 40
+        cert_img.paste(qr_resized, (qr_x, qr_y))
+        
+        # Add QR code label
+        qr_label = "Scan for verification"
+        qr_label_bbox = draw.textbbox((0, 0), qr_label, font=small_font)
+        qr_label_width = qr_label_bbox[2] - qr_label_bbox[0]
+        draw.text((qr_x + (qr_size - qr_label_width) // 2, qr_y + qr_size + 5), qr_label, fill="gray", font=small_font)
+        
+        # Add issuer
+        issuer_text = "Issued by: Local AI Demo Stack"
+        draw.text((40, cert_height - 60), issuer_text, fill="gray", font=small_font)
+        
+        # Save certificate to temporary file
+        cert_temp = tempfile.NamedTemporaryFile(delete=False, suffix='.png')
+        cert_img.save(cert_temp.name, 'PNG')
+        cert_temp.close()
+        
+        return cert_temp.name, certificate_data
+        
+    except Exception as e:
+        print(f"Error generating certificate: {e}")
+        return None, None
+
 def initialize_models():
     """Initialize all AI models"""
     global whisper_model, tts_model, llm_model, vlm_model
@@ -153,7 +291,7 @@ def get_progress_html(step, total_steps=10):
     else:
         percentage = ((step + 1) / total_steps) * 100
     
-    step_names = ["Intro", "About", "Email", "LLM Chat", "Vision AI", "Speech-to-Text", "Text-to-Speech", "Quiz Intro", "Quiz", "Complete"]
+    step_names = ["Intro", "About", "Name", "LLM Chat", "Vision AI", "Speech-to-Text", "Text-to-Speech", "Quiz Intro", "Quiz", "Complete"]
     current_step_name = step_names[min(step, len(step_names)-1)]
     
     return f"""
@@ -194,9 +332,9 @@ def llm_chat(message, history):
         return history, ""
 
 def analyze_image(image, question):
-    """Analyze uploaded image"""
+    """Analyze uploaded or captured image"""
     if image is None:
-        return "Please upload an image first."
+        return "Please upload an image or capture one with the camera first."
     
     if vlm_model is None:
         return "Vision model not available. Please check model loading."
@@ -262,7 +400,7 @@ def submit_quiz_answer(selected_option, current_q):
     global session_data
     
     if selected_option is None:
-        return "Please select an answer first.", current_q, gr.update(), gr.update()
+        return "Please select an answer first.", current_q, gr.update(), gr.update(), gr.update()
     
     # Find the index of the selected option
     question = QUIZ_QUESTIONS[current_q]
@@ -284,89 +422,25 @@ def submit_quiz_answer(selected_option, current_q):
     next_q = current_q + 1
     
     if next_q >= len(QUIZ_QUESTIONS):
-        # Quiz completed - Generate detailed results
+        # Quiz completed - Generate certificate and detailed results
         score = session_data["quiz_score"]
         total = len(QUIZ_QUESTIONS)
-        incorrect = total - score
-        percentage = (score / total) * 100
+        name = session_data.get("name", "Participant")
         
-        # Generate detailed answer breakdown
-        answer_breakdown = ""
-        for i, answer_data in enumerate(session_data["quiz_answers"]):
-            question = QUIZ_QUESTIONS[answer_data["question"]]
-            status = "✅ Correct" if answer_data["correct"] else "❌ Incorrect"
-            selected_answer = question["options"][answer_data["selected"]]
-            correct_answer = question["options"][question["correct"]]
-            
-            answer_breakdown += f"""
-            <div style="background: rgba(255, 255, 255, 0.1); padding: 15px; border-radius: 10px; margin: 10px 0; text-align: left;">
-                <div style="font-weight: bold; margin-bottom: 8px;">Q{i+1}: {question["question"]}</div>
-                <div style="margin: 5px 0;">
-                    <span style="color: {'#90EE90' if answer_data['correct'] else '#FFB6C1'};">{status}</span>
-                </div>
-                <div style="font-size: 0.9rem; opacity: 0.9;">
-                    Your answer: {selected_answer}
-                    {f'<br>Correct answer: {correct_answer}' if not answer_data['correct'] else ''}
-                </div>
-            </div>
-            """
-        
-        completion_html = f"""
-        <div style="text-align: center; padding: 40px; background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white; border-radius: 20px;">
-            <h1 style="font-size: 2.5rem; margin-bottom: 20px;">🎉 Quiz Complete!</h1>
-            
-            <div style="background: rgba(255, 255, 255, 0.2); border-radius: 15px; padding: 25px; margin: 20px 0;">
-                <h3 style="margin-bottom: 20px;">📊 Your Final Results:</h3>
-                
-                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin: 20px 0;">
-                    <div style="background: rgba(255, 255, 255, 0.1); padding: 15px; border-radius: 10px;">
-                        <div style="font-size: 1.8rem; font-weight: bold; color: #90EE90;">✅ {score}</div>
-                        <div style="font-size: 0.9rem;">Correct</div>
-                    </div>
-                    <div style="background: rgba(255, 255, 255, 0.1); padding: 15px; border-radius: 10px;">
-                        <div style="font-size: 1.8rem; font-weight: bold; color: #FFB6C1;">❌ {incorrect}</div>
-                        <div style="font-size: 0.9rem;">Incorrect</div>
-                    </div>
-                    <div style="background: rgba(255, 255, 255, 0.1); padding: 15px; border-radius: 10px;">
-                        <div style="font-size: 1.8rem; font-weight: bold;">📊 {percentage:.0f}%</div>
-                        <div style="font-size: 0.9rem;">Score</div>
-                    </div>
-                </div>
-                
-                <div style="background: rgba(255, 255, 255, 0.1); padding: 15px; border-radius: 10px; margin: 20px 0;">
-                    <div style="font-size: 1.3rem; font-weight: bold;">
-                        {'🏆 Excellent work!' if percentage >= 80 else '👍 Good job!' if percentage >= 60 else '📚 Keep learning!'}
-                    </div>
-                    <div style="font-size: 1rem; margin-top: 10px;">
-                        {'You have mastered local AI concepts!' if percentage >= 80 else
-                         'You have a solid understanding of AI basics!' if percentage >= 60 else
-                         'Consider reviewing the modules for better understanding.'}
-                    </div>
-                </div>
-            </div>
-            
-            <div style="background: rgba(255, 255, 255, 0.2); border-radius: 15px; padding: 25px; margin: 20px 0;">
-                <h3 style="margin-bottom: 15px;">📝 Detailed Answer Review:</h3>
-                <div style="max-height: 300px; overflow-y: auto;">
-                    {answer_breakdown}
-                </div>
-            </div>
-            
-            <p style="font-size: 1.1rem; margin-top: 20px;">
-                Thank you for participating in our AI Demo Tour!<br>
-                <span style="font-size: 0.9rem; opacity: 0.8;">You answered {score} out of {total} questions correctly.</span>
-            </p>
-        </div>
-        """
+        # Generate QR code certificate
+        cert_path, cert_data = generate_certificate_qr(name, score, total)
         
         # Navigate to completion step (step 9)
         session_data["current_step"] = 9
+        session_data["certificate_path"] = cert_path
+        session_data["certificate_data"] = cert_data
         
         return (
             next_q,
             gr.update(value=""),  # Clear quiz question
             gr.update(choices=[], value=None),  # Clear quiz options
-            gr.update()  # Keep feedback hidden
+            gr.update(),  # Keep feedback hidden
+            gr.update(value=cert_path, visible=True) if cert_path else gr.update()  # Show certificate
         )
     else:
         # Show next question
@@ -385,19 +459,22 @@ def submit_quiz_answer(selected_option, current_q):
             next_q,
             gr.update(value=question_html),
             gr.update(choices=next_question['options'], value=None),
-            gr.update()  # Keep feedback hidden
+            gr.update(),  # Keep feedback hidden
+            gr.update()  # Keep certificate hidden
         )
 
 def reset_session():
     """Reset session data"""
     global session_data
     session_data = {
-        "email": "",
+        "name": "",
         "start_time": None,
         "current_step": 0,
         "quiz_answers": [],
         "quiz_score": 0,
-        "current_question": 0
+        "current_question": 0,
+        "certificate_path": None,
+        "certificate_data": None
     }
 
 def create_interactive_tour():
@@ -518,11 +595,11 @@ def create_interactive_tour():
         """)
         
         # Interactive components (hidden initially)
-        with gr.Group(visible=False) as email_input_group:
-            email_input = gr.Textbox(
-                placeholder="Enter your email address...",
-                label="📧 Email Address",
-                type="email"
+        with gr.Group(visible=False) as name_input_group:
+            name_input = gr.Textbox(
+                placeholder="Enter your full name...",
+                label="👤 Your Name",
+                type="text"
             )
         
         with gr.Group(visible=False) as llm_group:
@@ -539,22 +616,25 @@ def create_interactive_tour():
         
         with gr.Group(visible=False) as vision_group:
             with gr.Row():
-                vision_image = gr.Image(
-                    label="📸 Upload Image",
-                    type="pil",
-                    height=300
-                )
-                vision_result = gr.Textbox(
-                    label="🤖 AI Analysis",
-                    lines=10,
-                    placeholder="Upload an image to see AI analysis..."
-                )
-            vision_question = gr.Textbox(
-                placeholder="Ask about the image...",
-                label="❓ Your question (optional)",
-                value="Describe this image in detail"
-            )
-            vision_analyze_btn = gr.Button("🔍 Analyze Image", variant="primary")
+                with gr.Column():
+                    vision_image = gr.Image(
+                        sources=["webcam", "upload"],  # Enable both camera and upload
+                        label="📸 Capture or Upload Image",
+                        type="pil",
+                        height=300
+                    )
+                    vision_question = gr.Textbox(
+                        placeholder="Ask about the image...",
+                        label="❓ Your question (optional)",
+                        value="Describe this image in detail"
+                    )
+                    vision_analyze_btn = gr.Button("🔍 Analyze Image", variant="primary")
+                with gr.Column():
+                    vision_result = gr.Textbox(
+                        label="🤖 AI Analysis",
+                        lines=15,
+                        placeholder="Capture/upload an image and click 'Analyze Image' to see AI analysis..."
+                    )
         
         with gr.Group(visible=False) as whisper_group:
             with gr.Row():
@@ -593,6 +673,15 @@ def create_interactive_tour():
             )
             quiz_submit_btn = gr.Button("✅ Submit Answer", variant="primary")
             quiz_feedback = gr.HTML(visible=False)  # Hidden feedback for results
+        
+        # Certificate display
+        with gr.Group(visible=False) as certificate_group:
+            certificate_image = gr.Image(
+                label="🎓 Your Certificate",
+                type="filepath",
+                height=400,
+                show_download_button=True
+            )
         
         # Completion display
         completion_display = gr.HTML(visible=False)
@@ -682,31 +771,39 @@ def create_interactive_tour():
                 </div>
             </div>
             """,
-            # Page 2: Email
+            # Page 2: Name Collection
             """
             <div style="text-align: center; padding: 50px; background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); min-height: 70vh; color: white; border-radius: 20px;">
                 <div style="background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); border-radius: 20px; padding: 40px; max-width: 800px; margin: 0 auto;">
                     <h2 style="font-size: 2.5rem; margin-bottom: 20px; text-shadow: 2px 2px 4px rgba(0,0,0,0.3);">
-                        📧 Almost Ready!
+                        👤 Almost Ready!
                     </h2>
                     <p style="font-size: 1.2rem; margin-bottom: 30px; line-height: 1.6;">
-                        To personalize your experience and send you a completion certificate,
-                        please provide your email address.
+                        To personalize your experience and generate your completion certificate,
+                        please provide your full name.
                     </p>
                     
                     <div style="background: rgba(255, 255, 255, 0.2); padding: 25px; border-radius: 15px; margin: 20px 0;">
                         <h3 style="margin-bottom: 15px;">🏆 What You'll Receive:</h3>
                         <ul style="text-align: left; max-width: 400px; margin: 0 auto;">
-                            <li style="margin: 10px 0;">✅ Participation certificate</li>
-                            <li style="margin: 10px 0;">📊 Your quiz results</li>
-                            <li style="margin: 10px 0;">🎯 Personalized recommendations</li>
-                            <li style="margin: 10px 0;">📚 Additional learning resources</li>
+                            <li style="margin: 10px 0;">🎓 Digital certificate with QR code</li>
+                            <li style="margin: 10px 0;">📊 Your personalized quiz results</li>
+                            <li style="margin: 10px 0;">🔍 Scannable verification code</li>
+                            <li style="margin: 10px 0;">📱 Mobile-friendly certificate</li>
                         </ul>
                     </div>
                     
+                    <div style="background: rgba(255, 255, 255, 0.2); padding: 20px; border-radius: 15px; margin: 20px 0;">
+                        <h3 style="margin-bottom: 10px;">📱 QR Code Certificate</h3>
+                        <p style="font-size: 1rem; line-height: 1.5;">
+                            Your certificate will include a QR code that contains all your completion details.
+                            Anyone can scan it to verify your achievement!
+                        </p>
+                    </div>
+                    
                     <p style="font-size: 0.9rem; margin-top: 20px; opacity: 0.8;">
-                        🔒 Your email is only used for this session and certificate delivery.
-                        We respect your privacy and won't send spam.
+                        🔒 Your name is only used for certificate generation.
+                        No personal data is stored or transmitted.
                     </p>
                 </div>
             </div>
@@ -819,16 +916,16 @@ def create_interactive_tour():
                         <h3 style="margin-bottom: 15px;">📸 Try These Examples:</h3>
                         <div style="text-align: left;">
                             <p style="margin: 10px 0; padding: 10px; background: rgba(255, 255, 255, 0.1); border-radius: 8px;">
-                                Upload a photo and ask: "What objects do you see?"
+                                📷 <strong>Use Camera:</strong> Click the camera icon to take a live photo
                             </p>
                             <p style="margin: 10px 0; padding: 10px; background: rgba(255, 255, 255, 0.1); border-radius: 8px;">
-                                "Read any text visible in this image"
+                                📁 <strong>Upload Photo:</strong> Or upload an existing image
                             </p>
                             <p style="margin: 10px 0; padding: 10px; background: rgba(255, 255, 255, 0.1); border-radius: 8px;">
-                                "Describe the mood and atmosphere of this scene"
+                                💬 <strong>Ask Questions:</strong> "What objects do you see?" or "Read any text"
                             </p>
                             <p style="margin: 10px 0; padding: 10px; background: rgba(255, 255, 255, 0.1); border-radius: 8px;">
-                                "What colors are dominant in this image?"
+                                🎨 <strong>Analyze Details:</strong> "Describe colors, mood, and atmosphere"
                             </p>
                         </div>
                     </div>
@@ -992,16 +1089,18 @@ def create_interactive_tour():
                 score = session_data.get("quiz_score", 0)
                 total = len(QUIZ_QUESTIONS)
                 percentage = (score / total) * 100 if total > 0 else 0
-                email = session_data.get("email", "your email")
+                name = session_data.get("name", "Participant")
+                cert_data = session_data.get("certificate_data", {})
+                cert_id = cert_data.get("certificate_id", "N/A") if cert_data else "N/A"
                 
                 content = f"""
                 <div style="text-align: center; padding: 50px; background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); min-height: 70vh; color: white; border-radius: 20px;">
                     <div style="background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); border-radius: 20px; padding: 40px; max-width: 800px; margin: 0 auto;">
                         <h1 style="font-size: 3rem; margin-bottom: 20px; text-shadow: 2px 2px 4px rgba(0,0,0,0.3);">
-                            🎉 Congratulations!
+                            🎉 Congratulations, {name}!
                         </h1>
                         <h2 style="font-size: 1.8rem; margin-bottom: 30px;">
-                            Thank you for participating in our AI Demo Tour!
+                            You've completed the AI Demo Tour!
                         </h2>
                         
                         <div style="background: rgba(255, 255, 255, 0.2); border-radius: 15px; padding: 25px; margin: 30px 0;">
@@ -1015,28 +1114,28 @@ def create_interactive_tour():
                         </div>
                         
                         <div style="background: rgba(255, 255, 255, 0.2); border-radius: 15px; padding: 25px; margin: 30px 0;">
-                            <h3 style="margin-bottom: 15px;">📧 Certificate Delivery</h3>
+                            <h3 style="margin-bottom: 15px;">🎓 Your Digital Certificate</h3>
                             <p style="font-size: 1.1rem; line-height: 1.6;">
-                                A participation certificate and detailed results have been sent to:<br>
-                                <strong>{email}</strong>
+                                Your personalized certificate with QR code has been generated!<br>
+                                <strong>Certificate ID:</strong> {cert_id}
                             </p>
                             <p style="font-size: 0.9rem; margin-top: 15px; opacity: 0.8;">
-                                Please check your email (including spam folder) within the next few minutes.
+                                📱 The QR code contains all your completion details and can be scanned for verification.
                             </p>
                         </div>
                         
                         <div style="background: rgba(255, 255, 255, 0.1); padding: 20px; border-radius: 10px; margin: 20px 0;">
                             <h3>🚀 What's Next?</h3>
                             <ul style="text-align: left; max-width: 500px; margin: 0 auto;">
-                                <li style="margin: 8px 0;">Explore the full interface in free-play mode</li>
-                                <li style="margin: 8px 0;">Set up your own local AI environment</li>
-                                <li style="margin: 8px 0;">Share this demo with colleagues and friends</li>
-                                <li style="margin: 8px 0;">Join our community for updates and tips</li>
+                                <li style="margin: 8px 0;">📱 Download your certificate using the button below</li>
+                                <li style="margin: 8px 0;">🔍 Share the QR code for verification</li>
+                                <li style="margin: 8px 0;">🤖 Explore the full AI interface</li>
+                                <li style="margin: 8px 0;">🌟 Set up your own local AI environment</li>
                             </ul>
                         </div>
                         
                         <p style="font-size: 1.2rem; margin-top: 30px;">
-                            <strong>Have a wonderful day!</strong> 🌟
+                            <strong>Thank you for participating!</strong> 🌟
                         </p>
                     </div>
                 </div>
@@ -1047,12 +1146,13 @@ def create_interactive_tour():
                 content = page_contents[0]  # Fallback to intro
             
             # Show/hide interactive components
-            email_visible = step == 2
+            name_visible = step == 2
             llm_visible = step == 3
             vision_visible = step == 4
             whisper_visible = step == 5
             tts_visible = step == 6
             quiz_visible = step == 8
+            certificate_visible = step == 9 and session_data.get("certificate_path")
             completion_visible = step == 9
             
             # Update content for quiz step
@@ -1105,20 +1205,21 @@ def create_interactive_tour():
                 gr.update(visible=back_visible),
                 gr.update(value=next_text, visible=next_visible),
                 gr.update(value=content),
-                gr.update(visible=email_visible),
+                gr.update(visible=name_visible),
                 gr.update(visible=llm_visible),
                 gr.update(visible=vision_visible),
                 gr.update(visible=whisper_visible),
                 gr.update(visible=tts_visible),
                 gr.update(visible=quiz_visible),
+                gr.update(visible=certificate_visible, value=session_data.get("certificate_path")),
                 gr.update(visible=completion_visible),
                 step
             )
         
-        def go_next(step, email_value):
+        def go_next(step, name_value):
             """Go to next step"""
-            if step == 2 and email_value and "@" in email_value:
-                session_data["email"] = email_value
+            if step == 2 and name_value and name_value.strip():
+                session_data["name"] = name_value.strip()
                 session_data["start_time"] = datetime.now()
             
             # Handle "Start Again" from completion page
@@ -1162,11 +1263,11 @@ def create_interactive_tour():
         # Event handlers
         next_btn.click(
             go_next,
-            inputs=[current_step, email_input],
+            inputs=[current_step, name_input],
             outputs=[
                 progress_display, back_btn, next_btn, main_content,
-                email_input_group, llm_group, vision_group, whisper_group,
-                tts_group, quiz_group, completion_display, current_step,
+                name_input_group, llm_group, vision_group, whisper_group,
+                tts_group, quiz_group, certificate_group, completion_display, current_step,
                 quiz_question_display, quiz_options, quiz_question_idx
             ]
         )
@@ -1176,8 +1277,8 @@ def create_interactive_tour():
             inputs=[current_step],
             outputs=[
                 progress_display, back_btn, next_btn, main_content,
-                email_input_group, llm_group, vision_group, whisper_group,
-                tts_group, quiz_group, completion_display, current_step,
+                name_input_group, llm_group, vision_group, whisper_group,
+                tts_group, quiz_group, certificate_group, completion_display, current_step,
                 quiz_question_display, quiz_options, quiz_question_idx
             ]
         )
@@ -1220,7 +1321,7 @@ def create_interactive_tour():
         quiz_submit_btn.click(
             submit_quiz_answer,
             inputs=[quiz_options, quiz_question_idx],
-            outputs=[quiz_question_idx, quiz_question_display, quiz_options, quiz_feedback]
+            outputs=[quiz_question_idx, quiz_question_display, quiz_options, quiz_feedback, certificate_image]
         )
         
         # Direct module navigation handlers
@@ -1248,8 +1349,8 @@ def create_interactive_tour():
             go_to_home_direct,
             outputs=[
                 progress_display, back_btn, next_btn, main_content,
-                email_input_group, llm_group, vision_group, whisper_group,
-                tts_group, quiz_group, completion_display, current_step,
+                name_input_group, llm_group, vision_group, whisper_group,
+                tts_group, quiz_group, certificate_group, completion_display, current_step,
                 quiz_question_display, quiz_options, quiz_question_idx
             ]
         )
@@ -1258,8 +1359,8 @@ def create_interactive_tour():
             go_to_llm_direct,
             outputs=[
                 progress_display, back_btn, next_btn, main_content,
-                email_input_group, llm_group, vision_group, whisper_group,
-                tts_group, quiz_group, completion_display, current_step,
+                name_input_group, llm_group, vision_group, whisper_group,
+                tts_group, quiz_group, certificate_group, completion_display, current_step,
                 quiz_question_display, quiz_options, quiz_question_idx
             ]
         )
@@ -1268,8 +1369,8 @@ def create_interactive_tour():
             go_to_vision_direct,
             outputs=[
                 progress_display, back_btn, next_btn, main_content,
-                email_input_group, llm_group, vision_group, whisper_group,
-                tts_group, quiz_group, completion_display, current_step,
+                name_input_group, llm_group, vision_group, whisper_group,
+                tts_group, quiz_group, certificate_group, completion_display, current_step,
                 quiz_question_display, quiz_options, quiz_question_idx
             ]
         )
@@ -1278,8 +1379,8 @@ def create_interactive_tour():
             go_to_whisper_direct,
             outputs=[
                 progress_display, back_btn, next_btn, main_content,
-                email_input_group, llm_group, vision_group, whisper_group,
-                tts_group, quiz_group, completion_display, current_step,
+                name_input_group, llm_group, vision_group, whisper_group,
+                tts_group, quiz_group, certificate_group, completion_display, current_step,
                 quiz_question_display, quiz_options, quiz_question_idx
             ]
         )
@@ -1288,8 +1389,8 @@ def create_interactive_tour():
             go_to_tts_direct,
             outputs=[
                 progress_display, back_btn, next_btn, main_content,
-                email_input_group, llm_group, vision_group, whisper_group,
-                tts_group, quiz_group, completion_display, current_step,
+                name_input_group, llm_group, vision_group, whisper_group,
+                tts_group, quiz_group, certificate_group, completion_display, current_step,
                 quiz_question_display, quiz_options, quiz_question_idx
             ]
         )

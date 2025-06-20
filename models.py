@@ -412,7 +412,6 @@ class OllamaLLM:
             # Prioritized model selection
             preferred_models = [
                 # High-quality instruction models
-                "myaniu/qwen2.5-1m:14b-instruct-q8_0",
                 "myaniu/qwen2.5-1m:7b-instruct-q8_0", 
                 "command-a:latest",
                 # Standard models
